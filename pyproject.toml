@@ -1,0 +1,8 @@
+[project]
+name = "module7-order-coordination"
+version = "1.0.0"
+description = "Simulation of versioned event ordering and fencing tokens"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 100

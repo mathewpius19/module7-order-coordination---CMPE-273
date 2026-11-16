@@ -1,0 +1,47 @@
+MODULE 7: TIME, ORDERING & COORDINATION
+
+=== 1. VERSIONED EVENT ORDERING + DUPLICATE HANDLING ===
+Delivering: version=2 status=PAID
+  PENDING: order=order-100 received_version=2 missing_versions=[1] pending_versions=[2]
+  Outcome: BUFFERED
+Delivering: version=1 status=CREATED
+  APPLIED: order=order-100 version=1 status=CREATED
+  RELEASED pending event: order=order-100 version=2
+  APPLIED: order=order-100 version=2 status=PAID
+  Outcome: APPLIED
+Delivering: version=2 status=PAID
+  DUPLICATE ignored: order=order-100 version=2 current_version=2
+  Outcome: DUPLICATE_IGNORED
+  Final state: {"highest_fencing_token": 0, "order_id": "order-100", "pending_versions": [], "status": "PAID", "version": 2}
+  PASS: v2 waited for v1, then duplicate v2 was ignored.
+
+=== 2. MISSING EVENT TEST ===
+Delivering only: version=3 status=SHIPPED
+  PENDING: order=order-200 received_version=3 missing_versions=[1, 2] pending_versions=[3]
+  Outcome: BUFFERED
+  Final state: {"highest_fencing_token": 0, "order_id": "order-200", "pending_versions": [3], "status": "NOT_CREATED", "version": 0}
+  PASS: order did not jump to SHIPPED; versions 1 and 2 are missing.
+
+=== 3. STALE WORKER / FENCING TOKEN TEST ===
+  TOKEN issued: worker=worker-A token=1
+  TOKEN issued: worker=worker-B token=2
+Worker B updates first with the newer token:
+  WORKER UPDATE applied: order=order-300 worker=worker-B token=2 status=SHIPPED
+  Outcome: APPLIED
+Worker A resumes late with the older token:
+  STALE WORKER rejected: order=order-300 worker=worker-A token=1 highest_token=2
+  Outcome: STALE_REJECTED
+  Final state: {"highest_fencing_token": 2, "order_id": "order-300", "pending_versions": [], "status": "SHIPPED", "version": 0}
+  PASS: stale worker was rejected and SHIPPED was preserved.
+
+ALL MODULE 7 SCENARIOS PASSED
+
+AUTOMATED TESTS
+test_newer_worker_wins_and_stale_worker_is_rejected ... ok
+test_duplicate_event_is_ignored ... ok
+test_duplicate_pending_event_is_ignored ... ok
+test_missing_versions_prevent_state_jump ... ok
+test_out_of_order_events_are_buffered_then_applied_in_order ... ok
+
+Ran 5 tests
+OK
